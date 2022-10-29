@@ -42,6 +42,15 @@ pub struct Wallet {
     pub(crate) provider: Option<Provider>,
 }
 
+pub struct Payload {
+    utxo_id: UtxoId,
+    data: Vec<u8>,
+}
+pub struct Spendable {
+    coin: Coin,
+    data: Vec<u8>,
+}
+
 /// A `WalletUnlocked` is equivalent to a [`Wallet`] whose private key is known and stored
 /// alongside in-memory. Knowing the private key allows a `WalletUlocked` to sign operations, send
 /// transactions, and more.
@@ -687,6 +696,76 @@ impl WalletUnlocked {
         let outputs = [
             Output::coin(to.into(), amount, asset_id),
             Output::coin(predicate_address.into(), input_amount - amount, asset_id),
+        ];
+
+        let mut tx = Wallet::build_transfer_tx(&inputs, &outputs, tx_parameters);
+        // we set previous base amount to 0 because it only applies to signed coins, not predicate coins
+        self.add_fee_coins(&mut tx, 0, 0).await?;
+        self.sign_transaction(&mut tx).await?;
+
+        self.get_provider()?.send_transaction(&tx).await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn multi_spend_predicate(
+        &self,
+        wallet: &Bech32Address,
+        code: Vec<u8>,
+        asset_id: AssetId,
+        amount: u64,
+        to: &Bech32Address,
+        payloads: Vec<Payload>,
+        tx_parameters: TxParameters,
+    ) -> Result<Vec<Receipt>, Error> {
+
+        
+        let lookup: HashMap<_, _> = payloads
+            .iter()
+            .map(|payload: &Payload| (payload.utxo_id, payload.data))
+            .collect();
+
+        // get the spendable coins of the given asset ID for the given (predicate) wallet
+        let spendables: Vec<Spendable> = self
+            .get_provider()?
+            .get_spendable_coins(wallet, asset_id, amount)
+            .await?
+            .iter()
+            .filter(|coin| lookup.contains_key(&UtxoId::from(coin.utxo_id)))
+            .map(|coin| Spendable{
+                coin: coin,
+                data: lookup.get(&UtxoId::from(coin.utxo_id)).unwrap().clone(),
+            })
+            .collect();
+
+        // calculate the total input amount we are going to spend in the transaction
+        let available: u64 = spendables
+            .iter()
+            .map(|spendable| spendable.coin.amount.0)
+            .sum();
+
+        if available < amount {
+            // return Error::WalletError
+        }
+            
+        let inputs = spendables
+            .into_iter()
+            .map(|spendable| {
+                Input::coin_predicate(
+                    UtxoId::from(spendable.coin.utxo_id),
+                    spendable.coin.owner.into(),
+                    spendable.coin.amount.0,
+                    asset_id,
+                    TxPointer::default(),
+                    0,
+                    code.clone(),
+                    spendable.data.clone(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let outputs = [
+            Output::coin(to.into(), amount, asset_id),
+            Output::coin(wallet.into(), input_amount - amount, asset_id),
         ];
 
         let mut tx = Wallet::build_transfer_tx(&inputs, &outputs, tx_parameters);

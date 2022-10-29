@@ -721,11 +721,11 @@ impl WalletUnlocked {
         
         let lookup: HashMap<_, _> = payloads
             .iter()
-            .map(|payload: &Payload| (payload.utxo_id, payload.data))
+            .map(|payload| (payload.utxo_id, payload.data))
             .collect();
 
         // get the spendable coins of the given asset ID for the given (predicate) wallet
-        let spendables: Vec<Spendable> = self
+        let spendables: Vec<_> = self
             .get_provider()?
             .get_spendable_coins(wallet, asset_id, amount)
             .await?
@@ -738,7 +738,7 @@ impl WalletUnlocked {
             .collect();
 
         // calculate the total input amount we are going to spend in the transaction
-        let available: u64 = spendables
+        let available = spendables
             .iter()
             .map(|spendable| spendable.coin.amount.0)
             .sum();
@@ -747,7 +747,7 @@ impl WalletUnlocked {
             return Err(Error::InvalidData(String::from("insufficient funds available in provided payloads")))
         }
             
-        let inputs = spendables
+        let inputs: Vec<_> = spendables
             .into_iter()
             .map(|spendable| {
                 Input::coin_predicate(
@@ -761,7 +761,7 @@ impl WalletUnlocked {
                     spendable.data.clone(),
                 )
             })
-            .collect::<Vec<_>>();
+            .collect();
 
         let outputs = [
             Output::coin(to.into(), amount, asset_id),

@@ -721,24 +721,35 @@ impl WalletUnlocked {
         
         let lookup: HashMap<_, _> = payloads
             .iter()
-            .map(|payload| (payload.utxo_id, payload.data))
+            .map(|payload| (payload.utxo_id, payload.data.clone()))
             .collect();
 
         // get the spendable coins of the given asset ID for the given (predicate) wallet
-        let spendables: Vec<_> = self
+        let mut coins: Vec<_> = self
             .get_provider()?
             .get_spendable_coins(wallet, asset_id, amount)
-            .await?
+            .await?;
+        
+        coins.retain(|coin: &Coin| lookup.contains_key(&coin.utxo_id.0 .0));
+
+        let spendables: Vec<_> = coins
             .iter()
-            .filter(|coin| lookup.contains_key(&UtxoId::from(coin.utxo_id)))
             .map(|coin| Spendable{
-                coin: coin,
-                data: lookup.get(&UtxoId::from(coin.utxo_id)).unwrap().clone(),
+                coin: Coin{
+                    amount: coin.amount.clone(),
+                    block_created: coin.block_created.clone(),
+                    asset_id: coin.asset_id.clone(),
+                    utxo_id: coin.utxo_id.clone(),
+                    maturity: coin.maturity.clone(),
+                    owner: coin.owner.clone(),
+                    status: coin.status,
+                },
+                data: lookup.get(&coin.utxo_id.0 .0).unwrap().clone(),
             })
             .collect();
 
         // calculate the total input amount we are going to spend in the transaction
-        let available = spendables
+        let available: u64 = spendables
             .iter()
             .map(|spendable| spendable.coin.amount.0)
             .sum();

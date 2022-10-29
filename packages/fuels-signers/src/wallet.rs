@@ -744,7 +744,7 @@ impl WalletUnlocked {
             .sum();
 
         if available < amount {
-            // return Error::WalletError
+            return Err(Error::InvalidData(String::from("insufficient funds available in provided payloads")))
         }
             
         let inputs = spendables
@@ -765,7 +765,7 @@ impl WalletUnlocked {
 
         let outputs = [
             Output::coin(to.into(), amount, asset_id),
-            Output::coin(wallet.into(), input_amount - amount, asset_id),
+            Output::coin(wallet.into(), available - amount, asset_id),
         ];
 
         let mut tx = Wallet::build_transfer_tx(&inputs, &outputs, tx_parameters);

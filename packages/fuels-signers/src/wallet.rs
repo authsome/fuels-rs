@@ -43,11 +43,8 @@ pub struct Wallet {
 }
 
 pub struct Payload {
-    pub(crate) utxo_id: UtxoId,
-    pub(crate) data: Vec<u8>,
-}
-
-impl Payload {
+    pub utxo_id: UtxoId,
+    pub data: Vec<u8>,
 }
 
 struct Spendable {

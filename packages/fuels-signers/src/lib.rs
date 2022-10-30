@@ -11,7 +11,7 @@ use fuel_crypto::Signature;
 use fuel_gql_client::fuel_tx::Transaction;
 use fuels_types::bech32::Bech32Address;
 use std::error::Error;
-pub use wallet::{Wallet, WalletUnlocked};
+pub use wallet::{Wallet, WalletUnlocked, Payload};
 
 /// Trait for signing transactions and messages
 ///

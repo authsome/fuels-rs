@@ -713,7 +713,7 @@ impl WalletUnlocked {
         code: Vec<u8>,
         asset_id: AssetId,
         amount: u64,
-        to: &Bech32Address,
+        recipient: &Bech32Address,
         payloads: Vec<Payload>,
         tx_parameters: TxParameters,
     ) -> Result<Vec<Receipt>, Error> {
@@ -775,7 +775,7 @@ impl WalletUnlocked {
             .collect();
 
         let outputs = [
-            Output::coin(to.into(), amount, asset_id),
+            Output::coin(recipient.into(), amount, asset_id),
             Output::coin(wallet.into(), available - amount, asset_id),
         ];
 
